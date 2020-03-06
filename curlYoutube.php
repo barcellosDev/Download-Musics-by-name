@@ -6,7 +6,7 @@ class curlYoutube {
   private function set_curl($search_query) {
     $this->curl = curl_init();
     curl_setopt_array($this->curl, [
-      CURLOPT_URL => 'https://www.youtube.com/results?search_query='.str_replace(' ', '%', $search_query),
+      CURLOPT_URL => 'https://www.youtube.com/results?search_query='.str_replace(' ', '+', $search_query),
       CURLOPT_SSL_VERIFYPEER => false,
       CURLOPT_RETURNTRANSFER => true
     ]);
