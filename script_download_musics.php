@@ -2,73 +2,132 @@
 /**
  * Script desenvolvido por Alan Barcellos no dia 08/12/2019 as 22:15
  */
-include('curlYoutube.php');
+require_once 'curlYoutube.php';
+
 class Youtube_dl_aux extends curlYoutube {
   private $lista;
   public $dir_musica = 'downloaded_musics';
   public $dir_videos = 'downloaded_videos';
   private $_input;
+  private $f;
 
-  public function __construct($lista) {
-    $this->lista = $lista;
+  function __construct($lista) {
+    $this->lista = (isset($lista)) ? $lista : null;
+
+    if ($this->lista != null) {
+      $this->f = fopen('treat_errors'.DIRECTORY_SEPARATOR.'musicNames.txt', 'w');
+
+      if (!is_dir($this->dir_musica)) {
+        mkdir($this->dir_musica);
+      }
+
+      if (!is_dir($this->dir_videos)) {
+        mkdir($this->dir_videos);
+      }
+    } else {
+      echo "]: Por favor selecione uma lista para ler";
+      exit();
+    }
   }
-  private function moverArq($opcao, $link) {
-    echo "-------------------------------------------------------- \n";
-    echo "[...] Downloading... (".$link.") \n\n";
+
+  function __destruct() {
+    $this->curlClose();
+    
+    if ($this->lista != null) {
+      fclose($this->f); // Closing fopen handle
+      pclose(popen('start cmd /c php treat_errors'.DIRECTORY_SEPARATOR.'treatErrors.php ^& pause', 'r'));
+    }
+  }
+
+  private function Download($opcao, $link, $videoTitle, $videoNotepad) {
+    echo "[...] Downloading... (".$link.") => ".$videoTitle." \n";
+    echo "[!] Titulo original escrito: ".$videoNotepad." \n\n";
+
     shell_exec('youtube-dl '.$opcao.' '.$link);
     echo '[+] Downloaded!'."\n";
     echo "-------------------------------------------------------- \n\n";
+  }
+
+  private function moverArq() {
     $dir_atual = scandir('.');
+
     for ($i=0; $i < count($dir_atual); $i++) {
       if (strpos($dir_atual[$i], '.mp3') !== FALSE) {
-        if (!is_dir($this->dir_musica)) {
-          mkdir($this->dir_musica);
-        }
-        rename($dir_atual[$i], $this->dir_musica.'/'.$dir_atual[$i]);
+          rename($dir_atual[$i], $this->dir_musica.DIRECTORY_SEPARATOR.$dir_atual[$i]);
+
       } elseif (strpos($dir_atual[$i], '.mp4') !== FALSE) {
-        if (!is_dir($this->dir_videos)) {
-          mkdir($this->dir_videos);
-        }
-        rename($dir_atual[$i], $this->dir_videos.'/'.$dir_atual[$i]);
+          rename($dir_atual[$i], $this->dir_videos.DIRECTORY_SEPARATOR.$dir_atual[$i]);
       }
     }
   }
-  private function Download($lista) {
-    $links_musicas = file($lista, FILE_IGNORE_NEW_LINES | FILE_TEXT);
-    $links_videos = file($lista, FILE_IGNORE_NEW_LINES | FILE_TEXT);
-    $links_both = file($lista, FILE_IGNORE_NEW_LINES | FILE_TEXT);
-    $names = file($lista, FILE_IGNORE_NEW_LINES | FILE_TEXT);
-    // se for só musica
-    if ($this->_input == 'm') {
-      for ($i=0; $i < count($links_musicas); $i++) {
-        if (strrpos($links_musicas[$i], '.v') !== FALSE) {
-          $links_musicas[$i] = substr($links_musicas[$i], 0, strrpos($links_musicas[$i], '.'));
-        }
-        $this->moverArq('-x --audio-format mp3', $links_musicas[$i]);
+
+  private function downloadSelectedVideos($lista) {
+    $listOfNames = file($lista, FILE_IGNORE_NEW_LINES | FILE_TEXT | FILE_SKIP_EMPTY_LINES);
+
+    switch ($this->_input) {
+      case 'm':
+        $this->call_moverArqFunc($listOfNames, '-x --audio-format mp3');
+        break;
+
+      case 'v':
+        $this->call_moverArqFunc($listOfNames, '--format mp4');
+        break;
+
+      case 'mv':
+        $this->call_moverArqFunc_mv($listOfNames);
+        break;
+
+      case 'n':
+        $this->call_moverArqFunc($listOfNames, '-x --audio-format mp3', 'n');
+        break;
+
+      default:
+        echo 'Bye ;)';
+        exit();
+        break;
+    }
+  }
+
+  private function call_moverArqFunc_mv($list) {
+    foreach ($list as $value) {
+      if (strrpos($value, '.v') !== FALSE) {
+        $link = substr($value, 0, strrpos($value, '.v'));
+        $opcao = '--format mp4';
+      } else {
+        $link = $value;
+        $opcao = '-x --audio-format mp3';
       }
-      //fim do bloco só musica
-    } elseif ($this->_input == 'v') {
-      for ($i=0; $i < count($links_videos); $i++) {
-        if (strrpos($links_videos[$i], '.v') !== FALSE) {
-          $links_videos[$i] = substr($links_videos[$i], 0, strrpos($links_videos[$i], '.'));
-        }
-        $this->moverArq('--format mp4', $links_videos[$i]);
-      }
-    } elseif ($this->_input == 'mv') {
-      foreach ($links_both as $key => $value) {
-        if (strrpos($links_both[$key], '.v') !== FALSE) {
-          $link = substr($links_both[$key], 0, strrpos($links_both[$key], '.'));
-          $opcao = '--format mp4';
-        } else {
-          $link = $links_both[$key];
-          $opcao = '-x --audio-format mp3';
-        }
-        $this->moverArq($opcao, $link);
-      }
-    } elseif ($this->_input == 'n') {
-      foreach ($names as $key => $value) {
-        $l = $this->exec_curl($value);
-        $this->moverArq('-x --audio-format mp3', $l);
+
+      $fileID = $this->getId($link);
+      $this->Download($opcao, $link, $this->getTitleVideo($link), $value);
+      fwrite($this->f, $fileID."\n");
+      $this->moverArq();
+    }
+  }
+
+  private function getId($link) {
+    $start = strpos($link, 'v=');
+    $res = substr($link, $start + 2);
+    return $res;
+  }
+
+  private function call_moverArqFunc($list, $opcao, $choose = '') {
+    foreach ($list as $value) {
+      if ($choose == 'n') {
+        $linkVideo = $this->getLinkVideo($this->exec_curl($value));
+        $titleVideo = $this->getTitleVideo($linkVideo);
+        $fileID = $this->getId($linkVideo);
+
+        $this->Download($opcao, $linkVideo, $titleVideo, $value);
+        fwrite($this->f, $fileID."\n");
+        $this->moverArq();
+      } else {
+        $titleVideo = $this->getTitleVideo($value);
+        $fileID = $this->getId($value);
+
+        $this->Download($opcao, $value, $titleVideo, $value);
+        fwrite($this->f, $fileID."\n");
+        $this->moverArq();
       }
     }
   }
@@ -76,13 +135,14 @@ class Youtube_dl_aux extends curlYoutube {
   public function Main() {
     echo "Você deseja baixar as musicas por meio de nomes('n') ou links('l') ?: ";
     $this->_input = trim(fgets(STDIN));
+
     if ($this->_input != 'n') {
       echo "Voce quer baixar apenas musicas (Digite 'm') apenas videos (Digite 'v') ou os dois (Digite 'mv'): ";
       $this->_input = trim(fgets(STDIN));
-    }    
-    $this->Download($this->lista);
+    }
+    $this->downloadSelectedVideos($this->lista);
   }
 }
-$init = new Youtube_dl_aux($argv[1]);
+$init = @new Youtube_dl_aux($argv[1]);
 $init->Main();
 ?>
