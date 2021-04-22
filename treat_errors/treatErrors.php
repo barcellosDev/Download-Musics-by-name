@@ -36,7 +36,8 @@ if (file_exists($file)) {
 	echo "[-] Tem certeza que iniciou o programa?";
 }
 
-function writeResultsToFile($result, $type) {
+function writeResultsToFile($result, $type)
+{
 	$f = fopen('lista'.strtoupper($type).'.txt', 'w');
 	foreach ($result as $key => $value) {
 		fwrite($f, $value."\n");
@@ -44,14 +45,17 @@ function writeResultsToFile($result, $type) {
 	fclose($f);
 }
 
-function removeDots($array) {
+function removeDots($array)
+{
 	if ($array[0] == '.' && $array[1] == '..') {
 		unset($array[0]);
 		unset($array[1]);
 	}
 	return array_values($array);
 }
-function getId($fileNames) {
+
+function getId($fileNames)
+{
 	$len = strlen($fileNames);
 	$proibidos = ['(', ')', ' ', '[', ']'];
 
@@ -63,15 +67,19 @@ function getId($fileNames) {
 			break;
 		}
 	}
+
 	$start = ++$pos;
-	$end = strrpos($fileNames, '.')-$pos;
+	$end = strrpos($fileNames, '.') - $pos;
 	$id = substr($fileNames, $start, $end);
+
 	if (strlen($id) > 11)
 		$id = substr($id, strpos($id, '-')+1);
 
 	return $id;
 }
-function hasDifferent($arrFiles, $musicNames) {
+
+function hasDifferent($arrFiles, $musicNames)
+{
 	foreach ($arrFiles as $key => $value) {
 		$filesId[] = getId($value);
 	}
@@ -83,7 +91,8 @@ function hasDifferent($arrFiles, $musicNames) {
 	return (isset($linksToDown) && count($linksToDown) > 0) ? $linksToDown : 'Nenhum erro foi encontrado!';
 }
 
-function isEmptyDir($dir) {
+function isEmptyDir($dir)
+{
 	$dirToScan = scandir($dir);
 	$empty = null;
 

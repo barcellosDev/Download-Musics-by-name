@@ -26,9 +26,8 @@ class curlYoutube {
   }
 
   public function curlClose() {
-    if (is_resource($this->curl)) {
+    if (is_resource($this->curl))
       curl_close($this->curl);
-    }
   }
   
   public function exec_curl($nome) {
